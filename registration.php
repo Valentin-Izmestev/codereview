@@ -26,7 +26,7 @@ $arResult = ['status' => 'error', 'error' => []];
  */
  
 
-$secretKey = '6LeSVbQnAAAAAE_ZsDt1JOXvU1q1DkO5aoJkCwp6';
+$secretKey = 'key';
 
 $url = 'https://www.google.com/recaptcha/api/siteverify?secret='.$secretKey.'&response='.$capcha;
 
