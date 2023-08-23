@@ -8,14 +8,11 @@ use Firstbit\RabbitQuery;
 $request = Bitrix\Main\Context::getCurrent()->getRequest();
 $dataFromFront = $request->getJsonList()->toArray(); 
 
-$capcha;
-
-if(isset($dataFromFront["token"]))
-{
-	$capcha = $dataFromFront["token"];
+$capcha = '';
+if(isset($dataFromFront["token"])) {
+	$capcha = (string) htmlspecialcharsEx($dataFromFront["token"]);
 }
- 
-$arResult = ['status' => 'error', 'error' => []];
+
 /**
  * ОПИСАНИЕ ОШИБОК (строка ошибки - это класс элемента в DOM с описанием ошибки который нужно будет показать пользователю)
  * v-error-message--email-incorrectly - если не корректен email
@@ -30,6 +27,7 @@ $secretKey = 'key';
 
 $url = 'https://www.google.com/recaptcha/api/siteverify?secret='.$secretKey.'&response='.$capcha;
 
+ 
 $response = file_get_contents($url);
 
 $responseKeys = json_decode($response, true);
@@ -39,48 +37,38 @@ header('Content-type: application/json');
 // var_dump($responseKeys);
 //  die();
 
-if($responseKeys["success"] && $responseKeys["score"] >= 0.5)
-{
+if($responseKeys["success"] && $responseKeys["score"] >= 0.5){
     //echo json_encode(['success' => 'true', 'om_score' => $responseKeys['score'], 'token' =>$dataFromFront["token"]]);
 
     $neofitEmail = ''; 
-    if(!empty($dataFromFront["EMAIL"]))
-    {
-        $neofitEmail = htmlspecialcharsEx((string) $dataFromFront["EMAIL"]);
-    }
-    else
-    {
+    if(!empty($dataFromFront["EMAIL"])) {
+        $neofitEmail = htmlspecialcharsEx( (string) $dataFromFront["EMAIL"]);
+    } else {
         echo 'v-error-message--email-incorrectly';
         die();
     }
  
     $neofitPassword = '';
-    if(!empty($dataFromFront["PASSWORD"]))
-    {
-        $neofitPassword = (string) htmlspecialcharsEx($dataFromFront["PASSWORD"]);
-    }
-    else
-    {
+    if(!empty($dataFromFront["PASSWORD"])) {
+        $neofitPassword =  htmlspecialcharsEx( (string) $dataFromFront["PASSWORD"]);
+    } else {
         echo 'v-error-message--invalid-password';
         die();
     }
     
     $neofitConfirmPassword = '';
-    if(!empty($dataFromFront["CONFIRM_PASSWORD"]))
-    {
-        $neofitConfirmPassword = (string) htmlspecialcharsEx($dataFromFront["CONFIRM_PASSWORD"]);
+    if(!empty($dataFromFront["CONFIRM_PASSWORD"])) {
+        $neofitConfirmPassword = htmlspecialcharsEx( (string) $dataFromFront["CONFIRM_PASSWORD"]);
     }
     
  
     // Проверка сессии
-    if (empty($dataFromFront['sessid']) || $dataFromFront['sessid'] !== bitrix_sessid()) 
-    {
+    if (empty($dataFromFront['sessid']) || $dataFromFront['sessid'] !== bitrix_sessid()) {
         die();
     }
 
     //Проверка email
-    if(!check_email($neofitEmail))
-    {
+    if(!check_email($neofitEmail)) {
         echo 'v-error-message--email-incorrectly';
         die();
     }
@@ -88,20 +76,17 @@ if($responseKeys["success"] && $responseKeys["score"] >= 0.5)
     // Проверка существование пользователя
     $obUser = new CUser(); 
  
-    if ($obUser::GetByLogin($neofitEmail)->Fetch()) 
-    { 
+    if ($obUser::GetByLogin($neofitEmail)->Fetch()) { 
         echo 'v-error-message--registered';
         die();
     }
     //Проверка совпадения пароля и повторения пароля
-    if($neofitPassword !== $neofitConfirmPassword)
-    {
+    if($neofitPassword !== $neofitConfirmPassword) {
         echo 'v-error-message--mismatch';
         die();
     }
     // Проверка длинны пароля
-    if(strlen($neofitPassword) < 6)
-    {
+    if(strlen($neofitPassword) < 6) {
         echo 'v-error-message--invalid-password';
         die();
     }
@@ -118,10 +103,9 @@ if($responseKeys["success"] && $responseKeys["score"] >= 0.5)
 			'LID' => SITE_ID
 		];
 
-		$newUserId = $obUser->Add($arUserFields);
-   
-        if($newUserId)
-        {
+		$newUserId = $obUser->Add( (array) $arUserFields);
+ 
+        if($newUserId) {
             // Отправка данных пользователя ему на почту
             CEvent::Send("NEW_USER", SITE_ID, ['LOGIN' => $neofitEmail, 'PASSWORD' => $neofitPassword]);
             
@@ -133,24 +117,7 @@ if($responseKeys["success"] && $responseKeys["score"] >= 0.5)
             {
                 $RabbitQuery = new RabbitQuery();
                 $RabbitQuery->add("sendHumans", $arUserPackage, ['userId' => $newUserId, 'email' => $arParams['email']]);
-    
-                if ($isRemoteOnly) 
-                { 
-                    $obUser->Update($newUserId, ['UF_MOODLE_IDNUMBER' => $newUserId], false);
-                    $arUserPackageToMoodle = [
-                        "users"=>[
-                            [
-                                "username" => mb_strtolower($arUserFields["LOGIN"]),
-                                "email" => $arUserFields["EMAIL"], 
-                                "idnumber" => $newUserId
-                            ]
-                        ]
-                    ];
-                    $RabbitQuery->add("sendUsersToMoodle", $arUserPackageToMoodle);
-                } 
-            } 
-            // Авторизация 
-            $obUser->Login($neofitEmail, $neofitPassword, "Y", "Y"); 
+            }  
             echo 'OK';
             die(); 
         }
@@ -165,5 +132,3 @@ else
     // echo json_encode(['success' => 'false', 'om_score' => $responseKeys['score'], 'token' =>$dataFromFront["token"]]);
     echo 'Вы распознаны как бот';
 }
-
- 
